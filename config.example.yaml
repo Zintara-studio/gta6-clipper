@@ -1,0 +1,45 @@
+# Your personal config. `clip init` copies this to config.yaml (which git ignores).
+
+creator: yourname              # only used in logs
+
+# Which coding-agent CLI picks the best moments: claude | codex | agy
+agent: claude
+agent_model: ""                # optional, e.g. "sonnet" for claude. Empty = the CLI's default.
+
+whisper:
+  backend: auto                # auto | mlx (Apple Silicon) | faster (Windows/Intel/NVIDIA)
+  model: auto                  # auto | tiny | base | small | medium | large-v3-turbo
+  language: en
+
+daily_target: 25               # Shorts per day on YOUR channel
+clips_per_video_max: 8         # spread across sources so the channel isn't one stream all day
+min_score: 6                   # agent scores moments 1-10; anything lower is dropped
+vod_max_minutes: 240           # only scan the first N minutes of very long streams
+
+# Clip length in seconds, per source type
+clip_length:
+  stream:   [15, 55]
+  gameplay: [15, 55]
+  reaction: [15, 50]
+  news:     [15, 45]
+  trailer:  [8, 25]            # keep trailer snippets short
+
+render:
+  caption_presets: [yellow, green, red, cyan, pink]   # one picked at random per clip
+  words_per_caption: 3
+  music_dir: assets/music
+  music_volume_db: -18
+  voice_hook_types: [trailer, news]   # these get a short AI voice-over hook (adds commentary)
+  tts_voice: en-US-AndrewNeural       # US voices: en-US-AndrewNeural, en-US-BrianNeural, en-US-AvaNeural
+  crf: 21
+  preset: veryfast
+
+upload:
+  timezone: America/New_York   # schedule for US viewers
+  window: ["10:00", "23:00"]   # publish times are spread across this window (US Eastern)
+  schedule: true               # true = Studio "Schedule" (upload anytime, goes live at US times)
+  per_run_max: 15              # clips uploaded per `clip upload` run
+  pause_seconds: [20, 60]      # random pause between uploads in the browser
+  default_tags: [gta 6, gta vi, gta6, grand theft auto 6, gta 6 gameplay, gaming]
+  hashtags: ["#gta6", "#shorts", "#gaming"]
+  ego_profile: ""              # ego-lite profile id that is logged into your channel ("" = default)

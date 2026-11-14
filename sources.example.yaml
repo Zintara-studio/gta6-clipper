@@ -1,0 +1,30 @@
+# Where `clip harvest` looks for new videos. `clip init` copies this to sources.yaml.
+#
+# type:   stream | gameplay | reaction | news | trailer   (sets clip length + whether an AI voice hook is added)
+# layout: crop (fill 9:16) | blur (full frame on blurred background) | facecam (cam on top, game below)
+# facecam: [x, y, w, h] of the webcam as fractions of the frame, e.g. top-right cam = [0.72, 0.0, 0.28, 0.28]
+#
+# Only add streamers who allow clipping. Put the proof (Discord message, clip program page)
+# in `permission`. You will need it if you get a copyright claim.
+
+max_age_days: 3               # ignore uploads older than this
+per_source_new_videos: 2      # newest N videos checked per source on each harvest
+
+sources:
+  - name: Rockstar Games
+    url: https://www.youtube.com/@RockstarGames/videos
+    type: trailer
+    layout: blur
+
+  # - name: SomeStreamer
+  #   url: https://www.twitch.tv/somestreamer/videos?filter=archives
+  #   type: stream
+  #   layout: facecam
+  #   facecam: [0.72, 0.0, 0.28, 0.28]
+  #   permission: "https://discord.com/channels/... (clipping allowed)"
+
+  # - name: Some GTA news channel
+  #   url: https://www.youtube.com/@SomeChannel/videos
+  #   type: news
+  #   layout: blur
+  #   permission: "emailed them on 2026-11-15"

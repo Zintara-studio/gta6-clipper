@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# per-person files (copied from the *.example.yaml files by `clip init`)
+config.yaml
+sources.yaml
+
+# everything the pipeline produces
+workspace/
+
+# music you drop in yourself
+assets/music/*
+!assets/music/README.md
+node_modules/
+.remotion/
