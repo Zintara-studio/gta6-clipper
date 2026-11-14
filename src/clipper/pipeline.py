@@ -9,6 +9,7 @@ from pathlib import Path
 from rich.console import Console
 
 from . import db, fetch, pick, render, signals, transcribe, tts
+from .progress import emit
 from .config import JOBS
 
 console = Console()
@@ -39,14 +40,18 @@ def process(src: str, cfg: dict, source: dict | None = None, source_type: str | 
             layout: str | None = None, agent: str | None = None, force: bool = False) -> list[int]:
     source = source or {}
     con = db.connect()
+    emit("stage", "download")
     meta = fetch.probe(src)
     vid = meta["id"]
+    emit("title", meta["title"])
     if meta.get("live"):
         console.print(f"[yellow]skip (still live):[/] {meta['title']}")
+        emit("stage", "skipped")
         return []
     status = db.video_status(con, vid)
     if status == "done" and not force:
         console.print(f"[dim]already processed:[/] {meta['title']}")
+        emit("stage", "skipped")
         return []
 
     source_type = source_type or source.get("type") or guess_type(meta)
@@ -57,6 +62,8 @@ def process(src: str, cfg: dict, source: dict | None = None, source_type: str | 
 
     job = JOBS / f"{slug(meta['title'])}_{vid}"
     job.mkdir(parents=True, exist_ok=True)
+    if force:  # re-clip = pick NEW moments (existing clips of this video are passed as "avoid")
+        (job / "picks.json").unlink(missing_ok=True)
     (job / "meta.json").write_text(json.dumps({**meta, "source_type": source_type, "layout": layout,
                                                "source": source}, indent=2), encoding="utf-8")
     db.set_video(con, vid, source_name=source.get("name", ""), source_type=source_type,
@@ -82,11 +89,13 @@ def process(src: str, cfg: dict, source: dict | None = None, source_type: str | 
         console.print(f"  fetched ({time.time() - t:.0f}s)")
 
         t = time.time()
+        emit("stage", "transcribe")
         tr = transcribe.transcribe(wav, job / "transcript.json", cfg)
         sig = signals.compute(wav, job / "signals.json")
         console.print(f"  transcribed {len(tr['words'])} words, {len(sig['peaks'])} loud moments ({time.time() - t:.0f}s)")
 
         avoid = [(r["start"], r["end"]) for r in db.clips_for_video(con, vid)]
+        emit("stage", "pick")
         try:
             picks = pick.pick(job, meta, source_type, tr, sig, cfg, avoid, agent)
         except pick.ManualPick:
@@ -98,18 +107,31 @@ def process(src: str, cfg: dict, source: dict | None = None, source_type: str | 
     except Exception as e:
         db.set_video(con, vid, status="failed", error=str(e)[:1000])
         console.print(f"  failed: {e}", markup=False)
+        emit("stage", "failed")
         return []
 
 
 def render_picks(con, job: Path, meta: dict, picks: list[dict], tr: dict, sig: dict, source_type: str,
                  layout: str, facecam, full_video: Path | None, cfg: dict, source: dict) -> list[int]:
     vid = meta["id"]
+    if not picks:
+        console.print("  no moments scored high enough to clip (lower min_score in config.yaml to be less picky)")
+        emit("picked", 0)
+        db.set_video(con, vid, status="done", error=None)
+        emit("stage", "done")
+        return []
     console.print(f"  {len(picks)} clips picked, editing in Remotion...")
+    emit("stage", "edit")
+    emit("picked", len(picks))
     clips_dir = job / "clips"
+    # continue numbering after clips from earlier runs so a re-clip never overwrites them
+    existing = [int(m.group(1)) for f in clips_dir.glob("clip_*.mp4") if (m := re.match(r"clip_(\d+)\.mp4$", f.name))]
+    first = max(existing, default=0) + 1
+    names = {i: f"clip_{first + i - 1:02d}" for i in range(1, len(picks) + 1)}
     jobs: list[render.ClipJob] = []
     for i, c in enumerate(picks, 1):
         s, e = float(c["start"]), float(c["end"])
-        name = f"clip_{i:02d}"
+        name = names[i]
         cdir = clips_dir / name
         try:
             if full_video is not None:
@@ -141,7 +163,7 @@ def render_picks(con, job: Path, meta: dict, picks: list[dict], tr: dict, sig: d
     t = time.time()
     render.render_batch(jobs, cfg)
     ids = []
-    by_name = {f"clip_{i:02d}": c for i, c in enumerate(picks, 1)}
+    by_name = {names[i]: c for i, c in enumerate(picks, 1)}
     for j in jobs:
         c = by_name[j.name]
         if j.error or not j.out:
@@ -153,7 +175,9 @@ def render_picks(con, job: Path, meta: dict, picks: list[dict], tr: dict, sig: d
             score=c["score"], title=c["title"], description=c.get("description", ""), tags=c.get("tags", []),
             hook=c.get("hook", ""), file=str(j.out), status="ready")
         ids.append(clip_id)
+        emit("clip", clip_id)
         console.print(f"  ✓ #{clip_id} {c['score']:.0f}/10  {j.dur:4.1f}s  {c['title']}", markup=False)
     console.print(f"  rendered {len(ids)}/{len(jobs)} in {time.time() - t:.0f}s")
     db.set_video(con, vid, status="done", error=None)
+    emit("stage", "done")
     return ids

@@ -31,27 +31,15 @@ def init():
 
 @app.command()
 def doctor():
-    """Check ffmpeg, your agent CLI, ego-browser, fonts and music."""
-    cfg = load_config()
-    checks = {
-        "ffmpeg": shutil.which("ffmpeg"),
-        "ffprobe": shutil.which("ffprobe"),
-        f"agent: {cfg['agent']}": shutil.which(cfg["agent"]),
-        "node (Remotion editor)": shutil.which("node"),
-        "editor deps (cd editor && npm install)": (ROOT / "editor/node_modules/remotion").exists() or None,
-        "ego-browser (uploads)": shutil.which("ego-browser"),
-        "caption font": (ROOT / "assets/fonts/Anton-Regular.ttf").exists() or None,
-    }
-    music = [p for p in (ROOT / cfg["render"]["music_dir"]).glob("*") if p.suffix.lower() in
-             {".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac"}] if (ROOT / cfg["render"]["music_dir"]).exists() else []
-    ok = True
-    for k, v in checks.items():
-        console.print(f"  {'[green]✓' if v else '[red]✗'}[/] {k}")
-        ok &= bool(v)
-    console.print(f"  {'[green]✓[/]' if music else '[yellow]![/]'} music tracks: {len(music)}"
-                  + ("" if music else "  (drop no-copyright tracks in assets/music/)"))
+    """Check ffmpeg, your agent CLI, node/Remotion, ego-browser, font and music."""
+    from .checks import run_checks
+
+    res = run_checks()
+    for i in res["items"]:
+        mark = "[green]✓[/]" if i["ok"] else ("[red]✗[/]" if i["required"] else "[yellow]![/]")
+        console.print(f"  {mark} {i['name']}" + (f"  ({i['hint']})" if not i["ok"] and i.get("hint") else ""))
     console.print(f"  python {sys.version.split()[0]}")
-    if not ok:
+    if not res["ok"]:
         raise typer.Exit(1)
 
 
@@ -91,7 +79,7 @@ def harvest(
             age = fetch.age_days(e)
             if age is not None and age > float(srcs["max_age_days"]):
                 continue
-            if db.video_status(con, _guess_id(e)) in ("done", "processing"):
+            if db.video_status(con, _guess_id(e)) == "done":
                 continue
             todo.append((s, e))
     console.print(f"{len(todo)} new videos")
@@ -148,6 +136,17 @@ def auto(limit: int = typer.Option(0, help="max new videos to process")):
     """harvest + upload: the one command to run daily (or on a timer)."""
     harvest(limit=limit, dry_run=False)
     upload(count=None, now=False, check=False, dry_run=False)
+
+
+@app.command()
+def dashboard(
+    port: int = typer.Option(8765, help="local port"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="open the dashboard in your browser"),
+):
+    """Local web dashboard: paste links, watch progress, preview clips, upload."""
+    from .dashboard.server import serve
+
+    serve(port=port, open_browser=open_browser)
 
 
 @app.command()

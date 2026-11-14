@@ -15,6 +15,7 @@ user's own YouTube channel through YouTube Studio in **ego lite**. Each person r
 | `uv run clip upload [--count N] [--now] [--check] [--dry-run]` | upload ready clips via ego lite, scheduled across US prime time |
 | `uv run clip auto` | harvest + upload (the daily command) |
 | `uv run clip status` / `uv run clip skip <ids>` | queue overview / never upload these clips |
+| `uv run clip dashboard [--port 8765]` | local web UI (src/clipper/dashboard/): paste links, progress, clip previews, uploads |
 
 ## Pipeline (src/clipper/)
 
@@ -41,6 +42,14 @@ A failed upload saves `clip_<id>.png` + `clip_<id>.txt` (error + page snapshot) 
 Read those, fix the selector in `SEL`, then re-test with `uv run clip upload --check` (fills in ONE upload and stops
 before publishing, so the user can check it in ego lite). Use the `ego-browser` skill/guide (`ego-browser skill`) to
 inspect the page if needed. Do not switch to the YouTube Data API; the user chose browser uploads.
+
+## Dashboard
+
+`dashboard/server.py` (stdlib HTTP, 127.0.0.1 only) queues each job as a `clip ...` subprocess in the `tasks` table
+(two lanes: process / upload) and logs to `workspace/tasks/<id>.log`. Progress comes from `::stage::`, `::title::`,
+`::clip::` and `::render::` lines that `progress.emit()` prints when `CLIPPER_PROGRESS=1`; keep those markers when
+editing the pipeline. POSTs require the `X-Clipper: 1` header. `dashboard/index.html` is one vanilla-JS page that
+polls `/api/state` every 2 s.
 
 ## Editing the look
 

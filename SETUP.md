@@ -197,6 +197,27 @@ and say *"the upload check failed, fix the uploader"*. `AGENTS.md` tells it what
 
 ## 7. Daily use
 
+### The easy way: the dashboard
+
+```bash
+uv run clip dashboard
+```
+
+Your browser opens **http://127.0.0.1:8765**, a page that runs only on your computer:
+
+- **Clip videos**: paste YouTube/Twitch links (one per line) and press **Process**. Each one shows live progress
+  (Download → Transcribe → Pick → Edit → Done) with a log.
+- **Harvest**: one button checks everything in `sources.yaml` for new videos.
+- **Upload**: uploads the next N ready clips through ego lite, scheduled for US prime time. **Check 1** does one
+  supervised upload.
+- **Clips**: preview every clip, fix a title (it saves when you click away), **Skip** clips you don't want posted, and
+  see when uploaded ones go live.
+
+Keep the terminal open while you use it; **Ctrl+C** stops it. Jobs run one at a time, and uploads run in their own
+lane, so you can upload while new videos are being clipped.
+
+### Or from the terminal
+
 One command does everything (finds new videos, clips them, uploads and schedules for US prime time):
 
 ```bash
@@ -247,6 +268,7 @@ Your `config.yaml`, `sources.yaml`, music and clips are never touched by updates
 | Upload says "daily upload limit reached" | YouTube's cap for your channel. Stop for today; verified, older channels get higher caps. |
 | Upload fails at some step | Check the screenshot in `workspace/out/uploads/<time>/`, then ask your agent to fix the uploader (see step 6). |
 | Very slow transcription on Windows | Set `whisper: model: base` in `config.yaml` (faster, slightly less accurate). |
+| Dashboard says port busy | `uv run clip dashboard --port 8766` |
 | Remotion render fails | `cd editor && npm install`, then retry. Make sure you have ~3 GB free disk space. |
 
 Read **[docs/RULES.md](docs/RULES.md)** before you start posting. It's 2 minutes on copyright and monetisation, and it

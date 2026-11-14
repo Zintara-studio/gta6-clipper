@@ -82,6 +82,7 @@ RULES
 - tags: 5-10 lowercase search tags (e.g. "gta 6 funny moments", "gta 6 leonida").
 - reason: a few words on why this moment works.
 - Never pick moments with slurs, sexual content, or real-world violence.
+- Skip moments whose main appeal is a licensed song or music video (instant copyright claim). Speech, action and reveals only.
 """
 
 

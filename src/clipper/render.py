@@ -14,6 +14,7 @@ from pathlib import Path
 
 from .config import ROOT, WORKSPACE, resolve
 from .fetch import ffmpeg_bin, ffprobe_duration, has_audio
+from .progress import emit
 
 EDITOR = ROOT / "editor"
 MUSIC_EXT = {".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac"}
@@ -138,23 +139,31 @@ def render_batch(jobs: list[ClipJob], cfg: dict) -> list[ClipJob]:
     batch = jobs[0].dir.parent / "remotion_batch.json"
     batch.write_text(json.dumps({"root": str(WORKSPACE), "crf": int(r["crf"]), "preset": r["preset"],
                                  "items": items}), encoding="utf-8")
-    p = subprocess.run([_node(), str(EDITOR / "render.mjs"), str(batch)], cwd=EDITOR,
-                       capture_output=True, text=True, encoding="utf-8")
-    results = {}
-    for line in p.stdout.splitlines():
+    proc = subprocess.Popen([_node(), str(EDITOR / "render.mjs"), str(batch)], cwd=EDITOR,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+    results, other = {}, []
+    emit("render", f"0/{len(items)}")
+    for line in proc.stdout:
+        line = line.strip()
         if line.startswith("{"):
             try:
                 d = json.loads(line)
                 results[d["out"]] = d
+                emit("render", f"{len(results)}/{len(items)}")
+                continue
             except json.JSONDecodeError:
                 pass
+        if line and not line.startswith("Downloading"):
+            other.append(line)
+    proc.wait()
+    stderr_tail = "\n".join(other[-20:])
 
     for j in jobs:
         if j.error:
             continue
         res = results.get(str(j.dir / "visual.mp4"))
         if not res or not res.get("ok"):
-            j.error = (res or {}).get("error") or f"remotion failed: {p.stderr[-1200:]}"
+            j.error = (res or {}).get("error") or f"remotion failed: {stderr_tail[-1200:]}"
             continue
         final = j.dir.parent / f"{j.name}.mp4"
         try:

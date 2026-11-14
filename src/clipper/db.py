@@ -21,13 +21,20 @@ create table if not exists clips(
   file text, status text default 'ready', error text,
   created_at real, publish_at text, video_url text, uploaded_at real
 );
+create table if not exists tasks(
+  id integer primary key autoincrement,
+  kind text, lane text, args text, label text,
+  status text default 'queued', log text, returncode integer,
+  created_at real, started_at real, finished_at real
+);
 """
 # clip status: ready -> uploaded | failed | skipped
+# task status: queued -> running -> done | failed | cancelled   (dashboard background jobs)
 
 
 def connect() -> sqlite3.Connection:
     WORKSPACE.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(WORKSPACE / "clipper.db")
+    con = sqlite3.connect(WORKSPACE / "clipper.db", timeout=30, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
     return con

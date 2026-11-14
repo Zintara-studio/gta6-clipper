@@ -34,6 +34,11 @@ Then:
 
 ## Use
 
+**Dashboard:** `uv run clip dashboard` opens a local page where you paste links, watch progress, preview and
+retitle clips, and start uploads.
+
+Or from the terminal:
+
 ```bash
 uv run clip run "https://www.twitch.tv/videos/123456789" --type stream   # clip one video
 uv run clip harvest                 # clip everything new from sources.yaml

@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GTA 6 Clipper</title>
+<style>
+  :root {
+    --bg: #0b0b12;
+    --panel: #14141f;
+    --panel-2: #1b1b29;
+    --line: #2a2a3c;
+    --text: #ececf4;
+    --muted: #9a9ab0;
+    --pink: #ff3fa4;
+    --orange: #ff8a3d;
+    --violet: #8f5bff;
+    --green: #35d68a;
+    --red: #ff5468;
+    --yellow: #ffd23f;
+    --grad: linear-gradient(100deg, var(--pink), var(--orange));
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { background:
+      radial-gradient(1200px 500px at 85% -10%, rgba(255,63,164,.13), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(143,91,255,.12), transparent 60%), var(--bg);
+    min-height: 100vh; }
+  a { color: var(--orange); }
+  a.btn { color: var(--text); text-decoration: none; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 22px 20px 60px; }
+
+  header { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; }
+  .logo { font-weight: 900; font-size: 26px; letter-spacing: .5px; font-style: italic;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .logo small { display: block; font-size: 12px; font-style: normal; font-weight: 500; letter-spacing: 0;
+    color: var(--muted); -webkit-text-fill-color: var(--muted); }
+  .health { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; background: var(--panel-2);
+    border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .pill.ok { color: var(--green); border-color: rgba(53,214,138,.35); }
+  .pill.bad { color: var(--red); border-color: rgba(255,84,104,.45); }
+  .pill.warn { color: var(--yellow); border-color: rgba(255,210,63,.35); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; }
+  .stat b { display: block; font-size: 28px; font-weight: 800; }
+  .stat span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .stat.hot b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  .grid { display: grid; grid-template-columns: 380px 1fr; gap: 18px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+  .card + .card { margin-top: 14px; }
+  .card h2 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px; }
+  .card h2 .right { margin-left: auto; text-transform: none; letter-spacing: 0; }
+  textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; outline: none; }
+  textarea:focus, input:focus, select:focus { border-color: var(--pink); }
+  .row { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .row > label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); flex: 1; min-width: 120px; }
+  select, input[type=number], input[type=text] { background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+    padding: 8px 10px; outline: none; width: 100%; }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .btn { border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; background: var(--panel-2);
+    border: 1px solid var(--line); }
+  .btn:hover { border-color: #444460; }
+  .btn.primary { background: var(--grad); border: 0; color: #160814; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.small { padding: 5px 10px; font-size: 12px; border-radius: 8px; font-weight: 600; }
+  .btn.danger { color: var(--red); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .wide { width: 100%; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+  .tasks { display: flex; flex-direction: column; gap: 10px; }
+  .task { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .task.running { border-color: rgba(255,63,164,.55); box-shadow: 0 0 0 1px rgba(255,63,164,.15) inset; }
+  .task-top { display: flex; gap: 10px; align-items: center; }
+  .task-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+  .task-sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+  .badge { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; padding: 3px 8px; border-radius: 6px;
+    background: #2a2a3c; color: var(--muted); flex: none; }
+  .badge.running { background: rgba(255,63,164,.18); color: var(--pink); }
+  .badge.done { background: rgba(53,214,138,.15); color: var(--green); }
+  .badge.failed { background: rgba(255,84,104,.15); color: var(--red); }
+  .badge.queued { background: rgba(255,210,63,.13); color: var(--yellow); }
+  .steps { display: flex; gap: 4px; margin: 10px 0 2px; }
+  .step { flex: 1; text-align: center; font-size: 11px; color: var(--muted); padding-top: 7px; position: relative; }
+  .step::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: 4px; background: #2a2a3c; }
+  .step.done::before { background: var(--green); }
+  .step.now { color: var(--text); font-weight: 700; }
+  .step.now::before { background: var(--grad); animation: pulse 1.2s ease-in-out infinite; }
+  .step.fail::before { background: var(--red); }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .task-actions { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
+  .task-actions .meta { margin-left: auto; color: var(--muted); font-size: 12px; }
+  pre.log { margin: 10px 0 0; max-height: 260px; overflow: auto; background: #08080d; border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: #c9c9da; white-space: pre-wrap; word-break: break-word; }
+  .empty { color: var(--muted); text-align: center; padding: 28px 10px; border: 1px dashed var(--line); border-radius: 12px; }
+
+  .clips-head { display: flex; align-items: center; gap: 10px; margin: 26px 0 12px; flex-wrap: wrap; }
+  .clips-head h2 { margin: 0; font-size: 18px; }
+  .tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); padding: 4px; border-radius: 11px; }
+  .tab { padding: 6px 12px; border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 600; border: 0; background: none; }
+  .tab.on { background: var(--panel-2); color: var(--text); }
+  .clips { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .clip { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+  .clip video { width: 100%; aspect-ratio: 9 / 16; background: #000; display: block; object-fit: cover; }
+  .clip .missing { aspect-ratio: 9/16; display: grid; place-items: center; color: var(--muted); background: #08080d; }
+  .clip-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .clip-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .score { font-weight: 800; color: #160814; background: var(--grad); padding: 1px 7px; border-radius: 6px; }
+  .clip input.title { font-weight: 600; font-size: 13px; padding: 7px 8px; }
+  .clip input.title.saved { border-color: var(--green); }
+  .clip .when { font-size: 12px; color: var(--muted); }
+  .clip .acts { display: flex; gap: 6px; margin-top: auto; }
+
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #2a1220; border: 1px solid var(--red);
+    color: var(--text); padding: 10px 16px; border-radius: 10px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 9; max-width: 90vw; }
+  .toast.ok { background: #10251b; border-color: var(--green); }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 960px) {
+    .grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">GTA 6 CLIPPER<small>runs locally · posts to your channel</small></div>
+    <div class="health" id="health"><span class="pill">checking setup…</span></div>
+  </header>
+
+  <section class="stats">
+    <div class="stat hot"><b id="s-ready">–</b><span>ready to upload</span></div>
+    <div class="stat"><b id="s-today">–</b><span>uploaded today</span></div>
+    <div class="stat"><b id="s-sched">–</b><span>scheduled ahead</span></div>
+    <div class="stat"><b id="s-target">–</b><span>daily target</span></div>
+  </section>
+
+  <div class="grid">
+    <aside>
+      <div class="card">
+        <h2>Clip videos</h2>
+        <textarea id="urls" placeholder="Paste YouTube / Twitch links or local file paths — one per line"></textarea>
+        <div class="row">
+          <label>Type
+            <select id="type">
+              <option value="">Auto-detect</option>
+              <option value="stream">Stream</option>
+              <option value="gameplay">Gameplay</option>
+              <option value="reaction">Reaction</option>
+              <option value="news">News</option>
+              <option value="trailer">Trailer</option>
+            </select>
+          </label>
+          <label>Layout
+            <select id="layout">
+              <option value="">Auto</option>
+              <option value="crop">Fill (crop)</option>
+              <option value="blur">Blurred background</option>
+              <option value="facecam">Facecam split</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label class="check" style="flex-direction:row"><input type="checkbox" id="force"> Re-clip if already done</label>
+        </div>
+        <div class="row"><button class="btn primary wide" id="go">Process</button></div>
+        <div class="hint">Each link is downloaded, transcribed, picked by your agent and edited in Remotion — all on this computer.</div>
+      </div>
+
+      <div class="card">
+        <h2>Sources <span class="right pill" id="src-count">–</span></h2>
+        <button class="btn wide" id="harvest">Harvest new videos from sources.yaml</button>
+        <div class="hint">Checks every channel / streamer in <code>sources.yaml</code> for new uploads and clips them.</div>
+      </div>
+
+      <div class="card">
+        <h2>Upload to YouTube</h2>
+        <div class="row">
+          <label>Clips this run <input type="number" id="count" min="1" max="50" value="15"></label>
+        </div>
+        <div class="row">
+          <label class="check" style="flex-direction:row"><input type="checkbox" id="now"> Publish now (skip US prime-time scheduling)</label>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="upload" style="flex:1">Upload</button>
+          <button class="btn" id="check" title="Fill in one upload and stop so you can review it in ego lite">Check 1</button>
+        </div>
+        <div class="hint" id="upload-hint">Uploads run in ego lite through YouTube Studio.</div>
+      </div>
+    </aside>
+
+    <main>
+      <div class="card">
+        <h2>Jobs <span class="right"><button class="btn small" id="clear">Clear finished</button></span></h2>
+        <div class="tasks" id="tasks"><div class="empty">No jobs yet. Paste a link on the left.</div></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="clips-head">
+    <h2>Clips</h2>
+    <div class="tabs" id="tabs">
+      <button class="tab on" data-s="ready">Ready</button>
+      <button class="tab" data-s="uploaded">Uploaded</button>
+      <button class="tab" data-s="skipped">Skipped</button>
+      <button class="tab" data-s="all">All</button>
+    </div>
+  </div>
+  <div class="clips" id="clips"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const STEPS = [["download", "Download"], ["transcribe", "Transcribe"], ["pick", "Pick"], ["edit", "Edit"], ["done", "Done"]];
+let cfg = null, clipFilter = "ready", lastCountsKey = "", openLogs = new Set();
+
+function toast(msg, ok = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.className = "toast show" + (ok ? " ok" : "");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => (t.className = "toast"), 3500);
+}
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Clipper": "1" }, body: JSON.stringify(body),
+  };
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function ago(ts) { return ts ? dur(Date.now() / 1000 - ts) : ""; }
+function dur(s) {
+  s = Math.max(0, s);
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+
+function fmtWhen(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const us = d.toLocaleString("en-US", { timeZone: cfg?.timezone || "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  const local = d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+  return `${us} · your time ${local}`;
+}
+
+// ---------- health
+async function loadHealth() {
+  try {
+    const h = await api("/api/doctor");
+    $("#health").innerHTML = h.items.map((i) =>
+      `<span class="pill ${i.ok ? "ok" : i.required ? "bad" : "warn"}" title="${esc(i.hint || "")}">${i.ok ? "✓" : i.required ? "✗" : "!"} ${esc(i.name)}${!i.ok && i.hint ? ` — ${esc(i.hint)}` : ""}</span>`).join("");
+  } catch (e) { $("#health").innerHTML = `<span class="pill bad">dashboard offline</span>`; }
+}
+
+// ---------- tasks
+function stepper(t) {
+  if (t.kind === "upload") {
+    const i = t.info;
+    const pos = i.upload_pos ? `clip ${i.upload_pos}` : (t.status === "running" ? "opening ego lite…" : "");
+    return `<div class="task-sub">${esc(pos)}${i.uploaded ? ` · <b style="color:var(--green)">${i.uploaded} uploaded</b>` : ""}${i.upload_failed ? ` · <b style="color:var(--red)">${i.upload_failed} failed</b>` : ""}</div>`;
+  }
+  const stage = t.info.stage;
+  if (stage === "skipped") return `<div class="task-sub">Already processed. Tick “Re-clip if already done” to redo it.</div>`;
+  const failed = t.status === "failed" || stage === "failed";
+  let idx = STEPS.findIndex(([k]) => k === stage);           // -1 = not started / failed before first marker
+  if (t.status === "done") idx = STEPS.length;
+  if (stage === "failed") idx = Math.max(0, STEPS.findIndex(([k]) => k === t.info.lastGood) + 1);
+  return `<div class="steps">${STEPS.map(([k, label], n) => {
+    let cls = n < idx ? "done" : "";
+    if (n === Math.max(idx, 0) && t.status === "running") cls = "now";
+    if (n === Math.max(idx, 0) && failed) cls = "fail";
+    let extra = "";
+    if (k === "edit" && t.info.render && n <= idx) extra = ` ${t.info.render}`;
+    if (k === "pick" && t.info.picked != null) extra = ` (${t.info.picked})`;
+    return `<div class="step ${cls}">${label}${extra}</div>`;
+  }).join("")}</div>`;
+}
+
+function taskTitle(t) {
+  if (t.kind === "harvest") return t.info.title ? `Harvest · ${t.info.title}` : "Harvest sources";
+  if (t.kind === "upload") return t.label;
+  return t.info.title || t.label;
+}
+
+function renderTasks(tasks) {
+  const box = $("#tasks");
+  if (!tasks.length) { box.innerHTML = `<div class="empty">No jobs yet. Paste a link on the left.</div>`; return; }
+  const scrolls = {};
+  box.querySelectorAll("pre.log").forEach((p) => (scrolls[p.dataset.id] = [p.scrollTop, p.scrollHeight - p.scrollTop - p.clientHeight < 8]));
+  box.innerHTML = tasks.map((t) => {
+    const running = t.status === "running";
+    const time = running ? `running ${ago(t.started_at)}`
+      : t.finished_at && t.started_at ? `took ${dur(t.finished_at - t.started_at)}`
+      : t.status === "queued" ? "waiting in line" : "";
+    const sub = t.kind === "process" ? (t.info.title ? t.label : "") : t.kind === "harvest" ? `${t.info.titles.length} videos seen` : "";
+    const clipsMade = t.info.clips ? ` · <b style="color:var(--green)">${t.info.clips} clips</b>`
+      : t.kind === "process" && t.status === "done" && t.info.picked === 0 ? " · no strong moments found" : "";
+    const showLog = openLogs.has(t.id);
+    return `<div class="task ${running ? "running" : ""}">
+      <div class="task-top">
+        <div style="min-width:0;flex:1">
+          <div class="task-title">${esc(taskTitle(t))}</div>
+          <div class="task-sub">${esc(sub)}${clipsMade}</div>
+        </div>
+        <span class="badge ${t.status}">${t.status}</span>
+      </div>
+      ${stepper(t)}
+      <div class="task-actions">
+        <button class="btn small" data-log="${t.id}">${showLog ? "Hide log" : "Log"}</button>
+        <a class="btn small" href="/api/tasks/${t.id}/log" target="_blank">Full log</a>
+        ${t.status === "running" || t.status === "queued" ? `<button class="btn small danger" data-cancel="${t.id}">Cancel</button>` : ""}
+        <span class="meta">${esc(time)}</span>
+      </div>
+      ${showLog ? `<pre class="log" data-id="${t.id}">${esc(t.info.tail.join("\n")) || "(no output yet)"}</pre>` : ""}
+    </div>`;
+  }).join("");
+  box.querySelectorAll("pre.log").forEach((p) => {
+    const s = scrolls[p.dataset.id];
+    p.scrollTop = !s || s[1] ? p.scrollHeight : s[0];
+  });
+}
+
+$("#tasks").addEventListener("click", async (e) => {
+  const log = e.target.closest("[data-log]");
+  const cancel = e.target.closest("[data-cancel]");
+  if (log) {
+    const id = Number(log.dataset.log);
+    openLogs.has(id) ? openLogs.delete(id) : openLogs.add(id);
+    refresh();
+  }
+  if (cancel) {
+    await api(`/api/tasks/${cancel.dataset.cancel}/cancel`, {});
+    toast("Cancelling…", true);
+    refresh();
+  }
+});
+
+// ---------- clips (keyed so playing videos / focused titles aren't reset on refresh)
+const clipEls = new Map();
+
+function clipCard(c) {
+  const el = document.createElement("div");
+  el.className = "clip";
+  el.dataset.id = c.id;
+  el.innerHTML = `
+    ${c.exists ? `<video src="/media/${c.id}.mp4#t=0.5" preload="metadata" controls playsinline></video>` : `<div class="missing">file missing</div>`}
+    <div class="clip-body">
+      <div class="clip-meta"><span class="score">${Math.round(c.score)}/10</span><span>${c.duration}s</span><span>· ${esc(c.source_type || "")}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">· ${esc(c.source_name || "")}</span></div>
+      <input class="title" type="text" maxlength="100" value="${esc(c.title)}" title="Edit the YouTube title (saved automatically)">
+      <div class="when"></div>
+      <div class="acts"></div>
+    </div>`;
+  const input = el.querySelector("input.title");
+  const save = async () => {
+    if (input.value.trim() === input.dataset.orig) return;
+    try {
+      await api(`/api/clips/${c.id}`, { title: input.value });
+      input.dataset.orig = input.value.trim();
+      input.classList.add("saved");
+      setTimeout(() => input.classList.remove("saved"), 1200);
+    } catch (e) { toast(e.message); }
+  };
+  input.dataset.orig = c.title;
+  input.addEventListener("blur", save);
+  input.addEventListener("keydown", (e) => e.key === "Enter" && input.blur());
+  el.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-set]");
+    if (!b) return;
+    await api(`/api/clips/${c.id}`, { status: b.dataset.set });
+    toast(b.dataset.set === "skipped" ? "Clip skipped" : "Clip back in the queue", true);
+    loadClips(true);
+  });
+  return el;
+}
+
+function updateCard(el, c) {
+  const when = el.querySelector(".when");
+  if (c.status === "uploaded") {
+    when.innerHTML = `${c.publish_at ? "🗓 " + esc(fmtWhen(c.publish_at)) : "Published"}${c.video_url ? ` · <a href="${esc(c.video_url)}" target="_blank">open</a>` : ""}`;
+  } else if (c.error) {
+    when.innerHTML = `<span style="color:var(--red)" title="${esc(c.error)}">last upload failed</span>`;
+  } else when.textContent = c.status === "skipped" ? "Skipped — won't upload" : "";
+  const acts = el.querySelector(".acts");
+  const want = c.status === "ready" ? `<button class="btn small" data-set="skipped">Skip</button>`
+    : c.status === "skipped" ? `<button class="btn small" data-set="ready">Restore</button>` : "";
+  if (acts.innerHTML !== want) acts.innerHTML = want;
+  const input = el.querySelector("input.title");
+  if (document.activeElement !== input && input.dataset.orig !== c.title) { input.value = c.title; input.dataset.orig = c.title; }
+  input.disabled = c.status === "uploaded";
+}
+
+async function loadClips(force = false) {
+  const clips = await api(`/api/clips?status=${clipFilter}`);
+  const grid = $("#clips");
+  if (force) { grid.innerHTML = ""; clipEls.clear(); }
+  const ids = new Set(clips.map((c) => c.id));
+  for (const [id, el] of clipEls) if (!ids.has(id)) { el.remove(); clipEls.delete(id); }
+  let prev = null;
+  for (const c of clips) {
+    let el = clipEls.get(c.id);
+    if (!el) { el = clipCard(c); clipEls.set(c.id, el); }
+    updateCard(el, c);
+    const want = prev ? prev.nextSibling : grid.firstChild;
+    if (want !== el) grid.insertBefore(el, want);
+    prev = el;
+  }
+  const empty = grid.querySelector(".empty");
+  if (!clips.length && !empty) grid.innerHTML = `<div class="empty" style="grid-column:1/-1">No ${clipFilter === "all" ? "" : clipFilter + " "}clips yet.</div>`;
+  if (clips.length && empty) empty.remove();
+}
+
+$("#tabs").addEventListener("click", (e) => {
+  const b = e.target.closest(".tab");
+  if (!b) return;
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x === b));
+  clipFilter = b.dataset.s;
+  loadClips(true);
+});
+
+// ---------- state polling
+async function refresh() {
+  try {
+    const s = await api("/api/state");
+    cfg = s.config;
+    $("#s-ready").textContent = s.counts.ready || 0;
+    $("#s-today").textContent = s.uploaded_today;
+    $("#s-sched").textContent = s.scheduled_upcoming;
+    $("#s-target").textContent = `${s.config.daily_target}/day`;
+    $("#src-count").textContent = `${s.config.sources} sources`;
+    $("#upload-hint").textContent = s.config.schedule
+      ? `Scheduled across ${s.config.window[0]}–${s.config.window[1]} ${s.config.timezone.replace("_", " ")} · runs in ego lite`
+      : "Publishes immediately · runs in ego lite";
+    if (!$("#count").dataset.touched) $("#count").value = s.config.per_run_max;
+    renderTasks(s.tasks);
+    const key = JSON.stringify(s.counts) + s.tasks.filter((t) => t.status === "running").length;
+    if (key !== lastCountsKey) { lastCountsKey = key; loadClips(); }
+  } catch (e) { /* server restarting */ }
+}
+
+// ---------- actions
+$("#go").addEventListener("click", async () => {
+  const urls = $("#urls").value.trim();
+  if (!urls) return toast("Paste a link first.");
+  try {
+    const r = await api("/api/process", { urls, type: $("#type").value, layout: $("#layout").value, force: $("#force").checked });
+    $("#urls").value = "";
+    toast(`${r.tasks.length} video${r.tasks.length > 1 ? "s" : ""} queued`, true);
+    refresh();
+  } catch (e) { toast(e.message); }
+});
+$("#urls").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("#go").click(); });
+$("#harvest").addEventListener("click", async () => { await api("/api/harvest", {}); toast("Harvest queued", true); refresh(); });
+$("#count").addEventListener("input", (e) => (e.target.dataset.touched = "1"));
+$("#upload").addEventListener("click", async () => {
+  try { await api("/api/upload", { count: Number($("#count").value), now: $("#now").checked }); toast("Upload started — watch ego lite", true); refresh(); }
+  catch (e) { toast(e.message); }
+});
+$("#check").addEventListener("click", async () => {
+  try { await api("/api/upload", { check: true, now: $("#now").checked }); toast("Check upload started — review it in ego lite, then click Schedule", true); refresh(); }
+  catch (e) { toast(e.message); }
+});
+$("#clear").addEventListener("click", async () => { await api("/api/tasks/clear", {}); openLogs.clear(); refresh(); });
+
+loadHealth();
+refresh();
+loadClips(true);
+setInterval(refresh, 2000);
+setInterval(loadHealth, 30000);
+</script>
+</body>
+</html>
