@@ -17,6 +17,8 @@ sources.yaml ─► harvest ─► yt-dlp ─► whisper ─► agent picks ─�
 
 ## Setup (once)
 
+**Step-by-step guide for friends: [SETUP.md](SETUP.md).** Short version:
+
 ```bash
 git clone <this repo> && cd gta6-clipper
 ./setup.sh                                          # Mac (Homebrew)
