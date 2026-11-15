@@ -117,6 +117,14 @@ def _kill_tree(p: subprocess.Popen) -> None:
         p.terminate()
 
 
+
+def _future(iso: str | None, now: datetime) -> bool:
+    """publish_at is stored with its own UTC offset, so compare as datetimes, not strings."""
+    try:
+        return datetime.fromisoformat(iso) > now
+    except (TypeError, ValueError):
+        return False
+
 def parse_log(path: Path | str | None, kind: str) -> dict:
     """Pull the ::stage:: / ::title:: / ::clip:: markers and a readable tail out of a task log."""
     out = {"stage": None, "title": None, "titles": [], "clips": 0, "picked": None, "render": None, "tail": [],
@@ -178,12 +186,12 @@ def api_state() -> dict:
             t["info"]["tail"] = t["info"]["tail"][-12:]
         tasks.append(t)
     counts = {r["status"]: r["n"] for r in con.execute("select status, count(*) n from clips group by status")}
-    now_iso = datetime.now().astimezone().isoformat()
     start_of_day = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
     uploaded_today = con.execute("select count(*) n from clips where status='uploaded' and uploaded_at>=?",
                                  (start_of_day,)).fetchone()["n"]
-    upcoming = con.execute("select count(*) n from clips where status='uploaded' and publish_at>?",
-                           (now_iso,)).fetchone()["n"]
+    now = datetime.now().astimezone()
+    upcoming = sum(1 for r in con.execute("select publish_at from clips where status='uploaded' and publish_at!=''")
+                   if _future(r["publish_at"], now))
     u = cfg["upload"]
     return {
         "tasks": tasks,
