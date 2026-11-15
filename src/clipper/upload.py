@@ -6,18 +6,20 @@ runs inside `ego-browser nodejs` and fills the Studio upload dialog for each cli
 from __future__ import annotations
 
 import json
+import os
 import random
 import shutil
 import subprocess
 import time
 from collections import defaultdict
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from rich.console import Console
 
 from . import db
-from .config import OUT, UPLOADER_JS
+from .config import OUT, UPLOADER_JS, WORKSPACE
 
 console = Console()
 
@@ -107,6 +109,27 @@ def tags_for(r, cfg: dict) -> str:
     return ", ".join(out)
 
 
+@contextmanager
+def upload_lock():
+    """Only one uploader may drive Studio at a time (dashboard + terminal runs used to collide)."""
+    f = open(WORKSPACE / "upload.lock", "a+")
+    try:
+        f.seek(0)
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        f.close()
+        raise SystemExit("Another upload is already running (dashboard or terminal). Wait for it to finish.")
+    try:
+        yield
+    finally:
+        f.close()  # the OS drops the lock with the handle, also if the process dies
+
+
 def run_upload(cfg: dict, count: int | None = None, schedule: bool | None = None, check: bool = False,
                dry_run: bool = False) -> None:
     con = db.connect()
@@ -154,6 +177,11 @@ def run_upload(cfg: dict, count: int | None = None, schedule: bool | None = None
         console.print(f"[dim]dry run: manifest at {mpath}[/]")
         return
 
+    with upload_lock():
+        _drive_studio(con, items, run_dir, mpath)
+
+
+def _drive_studio(con, items: list[dict], run_dir, mpath) -> None:
     exe = shutil.which("ego-browser")
     if not exe:
         raise SystemExit("ego-browser not found. Install ego lite (see README) and log into your channel in it.")
