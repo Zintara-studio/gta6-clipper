@@ -50,23 +50,43 @@ def _fmt(t: float) -> str:
     return f"{t // 3600}:{t % 3600 // 60:02d}:{t % 60:02d}" if t >= 3600 else f"{t // 60}:{t % 60:02d}"
 
 
+def _inside(t: float, spans: list[tuple[float, float]]) -> bool:
+    return any(a <= t < b for a, b in spans)
+
+
 def build_prompt(title: str, source_type: str, segments: list[dict], peaks: list[dict],
-                 t0: float, t1: float, want: int, lmin: int, lmax: int, avoid: list[tuple[float, float]]) -> str:
-    lines = [f"[{s['s']:.1f}-{s['e']:.1f}] {s['text']}" for s in segments if s["e"] > t0 and s["s"] < t1]
-    loud = [f"{p['t']}s (+{p['z']}σ)" for p in peaks if t0 <= p["t"] < t1]
+                 spans: list[tuple[float, float]], want: int, lmin: int, lmax: int,
+                 avoid: list[tuple[float, float]], chat: list[dict] | None = None) -> str:
+    lines = [f"[{s['s']:.1f}-{s['e']:.1f}] {s['text']}" for s in segments
+             if any(s["e"] > a and s["s"] < b for a, b in spans)]
+    loud = [f"{p['t']}s (+{p['z']}σ)" for p in peaks if _inside(p["t"], spans)]
+    hot = [f"{c['t']}s = {_fmt(c['t'])} ({c['msgs']} msgs/10s, {c['x']}x normal{', ' + c['top'] if c['top'] else ''})"
+           for c in (chat or []) if _inside(c["t"], spans)]
     avoid_txt = ", ".join(f"{a:.0f}-{b:.0f}s" for a, b in avoid) or "none"
+    where = (f"Section you are looking at: {_fmt(spans[0][0])} to {_fmt(spans[0][1])}." if len(spans) == 1 else
+             "This is a long stream. You only see the parts around chat spikes: "
+             + ", ".join(f"{_fmt(a)}-{_fmt(b)}" for a, b in spans) + ". Only pick clips inside these parts.")
+    chat_txt = ""
+    if chat is not None:
+        chat_txt = f"""
+CHAT SPIKES (live chat suddenly much faster than normal; the best sign that something clip-worthy happened):
+{chr(10).join(hot) or "none in this section"}
+Chat reacts AFTER the moment: for a spike at T the moment itself is usually 5-25 s before T. Start the clip right
+before the setup (typically ~20 s before T) and end just after the payoff. Prefer moments with a chat spike.
+
+"""
     return f"""You are the clip editor for a YouTube Shorts channel about GTA 6 aimed at viewers in the USA,
 Canada, UK and Australia. Your job: find the moments in this video most likely to go viral as Shorts.
 
 VIDEO: "{title}"
 This is {TYPE_NOTES.get(source_type, TYPE_NOTES['stream'])}
-Section you are looking at: {_fmt(t0)} to {_fmt(t1)}.
+{where}
 
 TRANSCRIPT (seconds from start of video):
 {chr(10).join(lines) or "(no speech detected)"}
 
 LOUDNESS SPIKES (screams, explosions, hype, music hits): {", ".join(loud) or "none"}
-ALREADY CLIPPED, DO NOT OVERLAP: {avoid_txt}
+{chat_txt}ALREADY CLIPPED, DO NOT OVERLAP: {avoid_txt}
 
 RULES
 - Return up to {want} clips, best first. Fewer is fine; return an empty list if nothing is good.
@@ -132,6 +152,21 @@ def clean(raw: list[dict], words: list[dict], duration: float, lmin: int, lmax: 
     return out
 
 
+def chunk_spans(duration: float, windows: list | None) -> list[list[tuple[float, float]]]:
+    """What each agent call looks at: 12-minute chunks, or (chat mode) groups of chat-spike windows."""
+    if not windows:
+        n = max(1, math.ceil(duration / CHUNK_SECONDS))
+        return [[(i * CHUNK_SECONDS, min(duration, (i + 1) * CHUNK_SECONDS + 30))] for i in range(n)]
+    out, cur, size = [], [], 0.0
+    for a, b in windows:
+        if cur and size + (b - a) > CHUNK_SECONDS:
+            out.append(cur)
+            cur, size = [], 0.0
+        cur.append((float(a), float(b)))
+        size += b - a
+    return out + ([cur] if cur else [])
+
+
 def pick(job: Path, meta: dict, source_type: str, transcript: dict, signals: dict, cfg: dict,
          avoid: list[tuple[float, float]], agent: str | None = None) -> list[dict]:
     cache = job / "picks.json"
@@ -141,15 +176,15 @@ def pick(job: Path, meta: dict, source_type: str, transcript: dict, signals: dic
     duration = float(signals.get("duration") or meta.get("duration") or 0)
     lmin, lmax = cfg["clip_length"].get(source_type, [15, 55])
     cap = int(cfg["clips_per_video_max"])
-    n_chunks = max(1, math.ceil(duration / CHUNK_SECONDS))
+    batches = chunk_spans(duration, signals.get("windows"))
+    n_chunks = len(batches)
     want = max(2, math.ceil(cap * 1.5 / n_chunks))
     agent = agent or cfg["agent"]
 
     raw: list[dict] = []
-    for i in range(n_chunks):
-        t0, t1 = i * CHUNK_SECONDS, min(duration, (i + 1) * CHUNK_SECONDS + 30)
+    for i, spans in enumerate(batches):
         prompt = build_prompt(meta["title"], source_type, transcript["segments"], signals["peaks"],
-                              t0, t1, want, lmin, lmax, avoid)
+                              spans, want, lmin, lmax, avoid, signals.get("chat"))
         if agent == "manual":
             (job / f"pick_prompt_{i:02d}.md").write_text(prompt, encoding="utf-8")
             continue
@@ -163,6 +198,9 @@ def pick(job: Path, meta: dict, source_type: str, transcript: dict, signals: dic
         (job / "pick_schema.json").write_text(json.dumps(CLIP_SCHEMA, indent=2), encoding="utf-8")
         raise ManualPick(job)
 
+    if signals.get("windows"):  # chat mode: only the windows were transcribed, so clips must sit inside them
+        wins = [(a - 10, b + 10) for a, b in signals["windows"]]
+        raw = [c for c in raw if _inside((float(c["start"]) + float(c["end"])) / 2, wins)]
     picks = clean(raw, transcript["words"], duration, lmin, lmax, float(cfg["min_score"]), cap, avoid)
     cache.write_text(json.dumps(picks, indent=2), encoding="utf-8")
     return picks

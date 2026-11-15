@@ -23,6 +23,7 @@ DEFAULTS: dict = {
     "clips_per_video_max": 8,
     "min_score": 6,
     "vod_max_minutes": 240,
+    "chat": {"enabled": True, "windows": 0, "lead_seconds": 60, "tail_seconds": 20},
     "clip_length": {
         "stream": [15, 55],
         "gameplay": [15, 55],

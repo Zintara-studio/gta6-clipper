@@ -8,7 +8,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from . import db, fetch, pick, render, signals, transcribe, tts
+from . import chat, db, fetch, pick, render, signals, transcribe, tts
 from .progress import emit
 from .config import JOBS
 
@@ -37,7 +37,8 @@ def default_layout(source_type: str) -> str:
 
 
 def process(src: str, cfg: dict, source: dict | None = None, source_type: str | None = None,
-            layout: str | None = None, agent: str | None = None, force: bool = False) -> list[int]:
+            layout: str | None = None, agent: str | None = None, force: bool = False,
+            chat_file: str | None = None) -> list[int]:
     source = source or {}
     con = db.connect()
     emit("stage", "download")
@@ -76,23 +77,44 @@ def process(src: str, cfg: dict, source: dict | None = None, source_type: str | 
         full_video: Path | None = None
         max_s = float(cfg["vod_max_minutes"]) * 60
 
-        t = time.time()
-        if meta["local"]:
-            full_video = Path(meta["url"])
-            audio_src = full_video
-        elif long_remote:
-            audio_src = next(iter(job.glob("audio_src.*")), None) or fetch.download_audio(meta["url"], job)
-        else:
-            full_video = next(iter(job.glob("source.mp4")), None) or fetch.download_video(meta["url"], job)
-            audio_src = full_video
-        wav = fetch.to_wav(audio_src, job / "audio.wav", max_s)
-        console.print(f"  fetched ({time.time() - t:.0f}s)")
+        spikes = chat_spikes(meta, job, cfg, chat_file)
+        chat_mode = long_remote and len(spikes) >= 3
 
         t = time.time()
-        emit("stage", "transcribe")
-        tr = transcribe.transcribe(wav, job / "transcript.json", cfg)
-        sig = signals.compute(wav, job / "signals.json")
-        console.print(f"  transcribed {len(tr['words'])} words, {len(sig['peaks'])} loud moments ({time.time() - t:.0f}s)")
+        if chat_mode:
+            # long stream with chat: skip the full download + transcript, only grab the audio around the spikes
+            c = cfg["chat"]
+            n = int(c["windows"]) or int(cfg["clips_per_video_max"]) * 2
+            wins = chat.windows(spikes, n, int(c["lead_seconds"]), int(c["tail_seconds"]), meta["duration"])
+            emit("stage", "transcribe")
+            tr, sig = transcribe_windows(meta["url"], job, wins, cfg)
+            sig.update(duration=meta["duration"], chat=spikes, windows=wins)
+            (job / "signals.json").write_text(json.dumps(sig), encoding="utf-8")
+            console.print(f"  chat mode: transcribed {len(wins)} windows around chat spikes "
+                          f"({sum(b - a for a, b in wins) / 60:.0f} of {meta['duration'] / 60:.0f} min), "
+                          f"{len(tr['words'])} words ({time.time() - t:.0f}s)")
+        else:
+            if meta["local"]:
+                full_video = Path(meta["url"])
+                audio_src = full_video
+            elif long_remote:
+                audio_src = next((f for f in job.glob("audio_src.*") if f.suffix not in (".part", ".ytdl")), None)
+                if not audio_src:  # only the part that gets scanned (vod_max_minutes), not a 10-hour stream
+                    audio_src = (fetch.download_audio(meta["url"], job) if meta["duration"] <= max_s + 60 else
+                                 fetch.download_audio_section(meta["url"], job, "audio_src", 0, max_s))
+            else:
+                full_video = next(iter(job.glob("source.mp4")), None) or fetch.download_video(meta["url"], job)
+                audio_src = full_video
+            wav = fetch.to_wav(audio_src, job / "audio.wav", max_s)
+            console.print(f"  fetched ({time.time() - t:.0f}s)")
+
+            t = time.time()
+            emit("stage", "transcribe")
+            tr = transcribe.transcribe(wav, job / "transcript.json", cfg)
+            sig = signals.compute(wav, job / "signals.json")
+            if spikes:
+                sig = {**sig, "chat": spikes}
+            console.print(f"  transcribed {len(tr['words'])} words, {len(sig['peaks'])} loud moments ({time.time() - t:.0f}s)")
 
         avoid = [(r["start"], r["end"]) for r in db.clips_for_video(con, vid)]
         emit("stage", "pick")
@@ -109,6 +131,42 @@ def process(src: str, cfg: dict, source: dict | None = None, source_type: str | 
         console.print(f"  failed: {e}", markup=False)
         emit("stage", "failed")
         return []
+
+
+def chat_spikes(meta: dict, job: Path, cfg: dict, chat_file: str | None = None) -> list[dict]:
+    """Chat replay spikes for Twitch VODs / YouTube streams (or a chat export). [] if there is no chat."""
+    if not (cfg["chat"]["enabled"] or chat_file):
+        return []
+    t = time.time()
+    try:
+        msgs = chat.fetch(meta, job, chat_file)
+    except Exception as e:
+        console.print(f"  chat replay unavailable ({e}); picking from speech + loudness only", markup=False)
+        return []
+    if not msgs:
+        return []
+    spikes = chat.spikes(msgs, meta["duration"])
+    (job / "chat_spikes.json").write_text(json.dumps(spikes, indent=2), encoding="utf-8")
+    console.print(f"  chat: {len(msgs):,} messages, {len(spikes)} spikes ({time.time() - t:.0f}s)")
+    return spikes
+
+
+def transcribe_windows(url: str, job: Path, wins: list[tuple[float, float]], cfg: dict) -> tuple[dict, dict]:
+    """Download + transcribe only the given time ranges; timestamps stay relative to the full video."""
+    wdir = job / "windows"
+    segs, words, peaks = [], [], []
+    for k, (a, b) in enumerate(wins):
+        stem = f"w{k:02d}_{int(a)}"
+        src = next((f for f in wdir.glob(f"{stem}.*") if f.suffix not in (".wav", ".json")), None) if wdir.exists() else None
+        src = src or fetch.download_audio_section(url, wdir, stem, a, b)
+        wav = fetch.to_wav(src, wdir / f"{stem}.wav")
+        tr = transcribe.transcribe(wav, wdir / f"{stem}.json", cfg)
+        segs += [{**s, "s": round(s["s"] + a, 2), "e": round(s["e"] + a, 2)} for s in tr["segments"]]
+        words += [{**w, "s": round(w["s"] + a, 2), "e": round(w["e"] + a, 2)} for w in tr["words"]]
+        peaks += [{**p, "t": p["t"] + int(a)} for p in signals.find_peaks(signals.loudness_per_second(wav), 4, 10)]
+    tr = {"segments": segs, "words": words}
+    (job / "transcript.json").write_text(json.dumps(tr), encoding="utf-8")
+    return tr, {"peaks": peaks}
 
 
 def render_picks(con, job: Path, meta: dict, picks: list[dict], tr: dict, sig: dict, source_type: str,

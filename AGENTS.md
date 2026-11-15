@@ -10,7 +10,8 @@ user's own YouTube channel through YouTube Studio in **ego lite**. Each person r
 | Command | What it does |
 |---|---|
 | `uv run clip doctor` | check ffmpeg, node, agent CLI, ego-browser, font, music |
-| `uv run clip run <url-or-file> [--type stream\|gameplay\|reaction\|news\|trailer] [--layout crop\|blur\|facecam]` | clip one video |
+| `uv run clip run <url-or-file> [--type stream\|gameplay\|reaction\|news\|trailer] [--layout crop\|blur\|facecam] [--chat chat.json]` | clip one video |
+| `uv run clip chat <vod-url> [--top N]` | list chat spikes in a Twitch VOD / YouTube stream, with timestamped links |
 | `uv run clip harvest [--dry-run] [--limit N]` | find new videos from `sources.yaml` and clip them |
 | `uv run clip upload [--count N] [--now] [--check] [--dry-run]` | upload ready clips via ego lite, scheduled across US prime time |
 | `uv run clip auto` | harvest + upload (the daily command) |
@@ -22,6 +23,10 @@ user's own YouTube channel through YouTube Studio in **ego lite**. Each person r
 1. `fetch.py`: yt-dlp. Videos under 20 min are downloaded in full; long VODs get audio only, and just the picked sections are downloaded later.
 2. `transcribe.py`: word timestamps (mlx-whisper on Apple Silicon, faster-whisper elsewhere). Cached in `transcript.json`.
 3. `signals.py`: loudness spikes, used for picking and for zoom punches.
+   `chat.py`: chat replay (Twitch GQL offset paging, YouTube live_chat via yt-dlp, or a TwitchDownloader export) →
+   spikes per 10 s bucket vs the local ±5 min pace, cached in `chat.json` / `chat_spikes.json`. Long streams with
+   ≥3 spikes run in **chat mode**: only windows around the top spikes are downloaded + transcribed
+   (`windows/`, timestamps stay absolute) and the agent sees them as `signals["windows"]`.
 4. `pick.py` + `agents.py`: the transcript is split into 12-minute chunks, each chunk goes to the user's agent CLI headless with a JSON schema, and the results are cleaned (cuts snapped to word boundaries, length limits, de-duplication, `min_score`). Cached in `picks.json`.
 5. `render.py`: ffmpeg cuts `segment.mp4` and mixes `audio.m4a` (voice hook from edge-tts, music ducked under speech, -14 LUFS).
    **Remotion** (`editor/`) renders the visuals (layout, captions, hook, zoom punches) in one batch, and ffmpeg muxes `clip_NN.mp4`.

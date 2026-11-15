@@ -56,6 +56,7 @@ def probe(src: str) -> dict:
         "url": info.get("webpage_url") or src,
         "local": False,
         "live": bool(info.get("is_live")),
+        "live_status": info.get("live_status") or "",
         "uploader": info.get("uploader") or "",
         "upload_date": info.get("upload_date") or "",
     }
@@ -114,6 +115,10 @@ def download_audio(url: str, dest: Path) -> Path:
 
 def download_section(url: str, dest: Path, stem: str, start: float, end: float) -> Path:
     return _download(url, dest, stem, VIDEO_FMT, ranges=[(max(0.0, start), end)])
+
+
+def download_audio_section(url: str, dest: Path, stem: str, start: float, end: float) -> Path:
+    return _download(url, dest, stem, "ba/b", ranges=[(max(0.0, start), end)])
 
 
 def to_wav(src: Path, wav: Path, max_seconds: float | None = None) -> Path:

@@ -4,6 +4,7 @@ Automatic GTA 6 Shorts factory. Point it at streams, trailers and news videos an
 
 1. **transcribes** them (word-level timestamps, runs locally),
 2. has **your coding agent** (Claude Code / Codex / Antigravity, whichever you're logged into) pick the moments most likely to go viral,
+   using the transcript, loudness spikes and, for streams, **chat spikes** (when chat explodes, that's the clip),
 3. **edits** each one in **Remotion**: 9:16 layout (fill / blurred background / facecam split), word-by-word pop captions,
    a hook box, zoom punches on loud moments, an AI US-voice hook for trailers/news, ducked background music, -14 LUFS audio,
 4. **uploads** them to *your* channel through YouTube Studio in **ego lite**, scheduled across US prime time
@@ -41,6 +42,7 @@ Or from the terminal:
 
 ```bash
 uv run clip run "https://www.twitch.tv/videos/123456789" --type stream   # clip one video
+uv run clip chat "https://www.twitch.tv/videos/123456789"   # just show where chat spiked (with timestamped links)
 uv run clip harvest                 # clip everything new from sources.yaml
 uv run clip upload --check          # first time: fill in one upload, you click Schedule
 uv run clip upload                  # upload the next 15, scheduled for US prime time
@@ -56,7 +58,20 @@ tells it how.
 Everything is in `config.yaml`: clip lengths per source type, `min_score`, `daily_target`, upload window, voice, music
 volume, caption colours. The visuals live in `editor/src/Short.tsx`; preview them with `cd editor && npm run studio`.
 
+## Chat spikes (Twitch VODs + YouTube past streams)
+
+The best stream clip finder is the stream's own chat. For every Twitch VOD (and YouTube stream with a chat replay)
+the clipper downloads the whole chat replay (no login, no extra app), counts messages per 10 seconds (LMAO / KEKW /
+CLIP IT / 💀 count double) and flags the moments where chat suddenly moves several times faster than normal. Chat
+reacts *after* the moment, so the agent is told to start each clip ~20 s before the spike.
+
+On long streams this also saves most of the work: instead of transcribing the first 4 hours, only ~80 s around each
+of the biggest spikes is downloaded and transcribed, across the **whole** stream. Already have a chat export from
+[TwitchDownloader](https://github.com/lay295/TwitchDownloader)? `uv run clip run <vod-url> --chat chat.json`.
+Settings: `chat:` in `config.yaml`. Only clip streamers who allow it (see `sources.yaml`).
+
 ## Speed (M-series Mac)
 
-A 3-minute trailer takes about 1 minute to transcribe and pick, plus about 20 s of Remotion render per clip. A 4-hour
-stream is mostly transcription time; only the picked sections are downloaded.
+A 3-minute trailer takes about 1 minute to transcribe and pick, plus about 20 s of Remotion render per clip. A long
+stream with chat takes a few minutes (chat download + ~16 short windows); without chat it is mostly transcription time.
+Only the picked sections are downloaded as video.

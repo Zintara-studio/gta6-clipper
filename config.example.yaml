@@ -14,7 +14,15 @@ whisper:
 daily_target: 25               # Shorts per day on YOUR channel
 clips_per_video_max: 8         # spread across sources so the channel isn't one stream all day
 min_score: 6                   # agent scores moments 1-10; anything lower is dropped
-vod_max_minutes: 240           # only scan the first N minutes of very long streams
+vod_max_minutes: 240           # only scan the first N minutes of very long streams (when there is no chat replay)
+
+# Chat replay as a clip finder (Twitch VODs + YouTube past streams): when something crazy happens, chat explodes.
+# Long streams with chat skip the full transcript and only transcribe the windows around the biggest chat spikes.
+chat:
+  enabled: true
+  windows: 0                   # how many chat spikes to look at in a long stream (0 = 2 x clips_per_video_max)
+  lead_seconds: 60             # chat reacts AFTER the moment, so each window starts this far before the spike
+  tail_seconds: 20
 
 # Clip length in seconds, per source type
 clip_length:

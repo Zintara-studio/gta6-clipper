@@ -50,13 +50,46 @@ def run(
     layout: Optional[str] = typer.Option(None, "--layout", "-l", help="crop | blur | facecam"),
     agent: Optional[str] = typer.Option(None, help="override picker: claude | codex | agy | manual"),
     force: bool = typer.Option(False, help="re-process a video that was already done"),
+    chat_file: Optional[Path] = typer.Option(None, "--chat", help="chat export for this video (TwitchDownloader JSON)"),
 ):
     """Clip one or more videos into ready-to-upload Shorts."""
     cfg = load_config()
+    if chat_file and len(sources) != 1:
+        raise typer.BadParameter("--chat goes with exactly one video")
     total = 0
     for s in sources:
-        total += len(pipeline.process(s, cfg, source_type=type, layout=layout, agent=agent, force=force))
+        total += len(pipeline.process(s, cfg, source_type=type, layout=layout, agent=agent, force=force,
+                                      chat_file=str(chat_file) if chat_file else None))
     console.print(f"[bold green]{total} clips ready.[/] Next: `clip upload`")
+
+
+@app.command("chat")
+def chat_cmd(
+    url: str = typer.Argument(..., help="Twitch VOD or YouTube stream URL"),
+    top: int = typer.Option(15, help="how many spikes to list"),
+    chat_file: Optional[Path] = typer.Option(None, "--chat", help="use this chat export instead of downloading"),
+):
+    """Show where chat spiked in a stream (the moments worth clipping), without clipping anything."""
+    from . import chat
+
+    meta = fetch.probe(url)
+    job = pipeline.JOBS / f"{pipeline.slug(meta['title'])}_{meta['id']}"
+    job.mkdir(parents=True, exist_ok=True)
+    msgs = chat.fetch(meta, job, chat_file)
+    if not msgs:
+        console.print("[yellow]No chat replay for this video (only Twitch VODs and YouTube past streams have one).[/]")
+        raise typer.Exit(1)
+    spikes = sorted(chat.spikes(msgs, meta["duration"]), key=lambda s: -s["z"])[:top]
+    console.print(f"{meta['title']}\n{len(msgs):,} chat messages, {meta['duration'] / 3600:.1f} h")
+    t = Table("#", "spike", "clip from", "msgs/10s", "vs normal", "chat said")
+    links = []
+    for k, s in enumerate(sorted(spikes, key=lambda s: s["t"]), 1):
+        start = max(0, s["t"] - 20)
+        links.append(f"{k:>3}  {meta['url']}{'&' if '?' in meta['url'] else '?'}"
+                     f"t={start // 3600}h{start % 3600 // 60}m{start % 60}s")
+        t.add_row(str(k), chat.fmt(s["t"]), chat.fmt(start), str(s["msgs"]), f"{s['x']}x", s["top"])
+    console.print(t)
+    console.print("\n".join(links), markup=False, soft_wrap=True)
 
 
 @app.command()
