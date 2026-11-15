@@ -202,6 +202,11 @@ for (const [i, item] of manifest.items.entries()) {
       break;
     }
   } catch (e) {
+    // Studio can show the daily cap at any step (e.g. as a banner while "Next" is gone), so check on every failure
+    if (!e.fatal && /daily upload limit/i.test(await bodyText().catch(() => ""))) {
+      e.message = `daily upload limit reached (${e.message})`;
+      e.fatal = true;
+    }
     log(`  FAILED: ${e.message}`);
     await debugDump(item.id, e.stack || e.message);
     results.push({ id: item.id, ok: false, error: e.message });
