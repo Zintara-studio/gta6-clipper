@@ -3,7 +3,7 @@
 Follow these steps once and you'll have your own GTA 6 Shorts channel posting about 25 clips a day.
 Plan on about 30–45 minutes, most of it waiting for downloads.
 
-> **Repo owner:** the repo is private. Invite each friend first: GitHub → this repo → Settings → Collaborators → Add people.
+> **Repo owner:** the repo is private. Invite each friend first: GitHub → Zintara-studio/gta6-clipper → Settings → Collaborators and teams → Add people.
 
 ---
 
@@ -34,7 +34,7 @@ If it replies, you're good. If it asks you to log in, log in first.
 
 ```bash
 cd ~
-git clone https://github.com/imajij/gta6-clipper.git
+git clone https://github.com/Zintara-studio/gta6-clipper.git
 cd gta6-clipper
 ```
 
@@ -42,7 +42,7 @@ cd gta6-clipper
 
 ```powershell
 cd ~
-git clone https://github.com/imajij/gta6-clipper.git
+git clone https://github.com/Zintara-studio/gta6-clipper.git
 cd gta6-clipper
 ```
 
