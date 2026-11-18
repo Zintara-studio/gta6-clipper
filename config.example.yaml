@@ -24,6 +24,16 @@ chat:
   lead_seconds: 60             # chat reacts AFTER the moment, so each window starts this far before the spike
   tail_seconds: 20
 
+# Live clipping (`clip live <channel>`): watch chat in real time; when it bursts, clip from lead_seconds before it.
+live:
+  lead_seconds: 15             # clip starts this long before chat went wild (the moment itself + its setup)
+  tail_seconds: 20             # and runs this long after (the agent may end it earlier/later on the payoff)
+  sensitivity: 3.0             # how unusual a burst must be (higher = fewer, bigger moments)
+  min_msgs: 8                  # at least this many messages in 10 s (raise for huge chats, lower for small YouTube chats)
+  min_gap_seconds: 60          # at most one clip per minute per stream
+  min_score: 5                 # chat already vouched for the moment, so the agent's bar is one point lower
+  buffer_minutes: 4            # how much of the stream is kept on disk while watching (~200 MB at 1080p60)
+
 # Clip length in seconds, per source type
 clip_length:
   stream:   [15, 55]

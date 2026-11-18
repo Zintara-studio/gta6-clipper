@@ -43,6 +43,7 @@ Or from the terminal:
 ```bash
 uv run clip run "https://www.twitch.tv/videos/123456789" --type stream   # clip one video
 uv run clip chat "https://www.twitch.tv/videos/123456789"   # just show where chat spiked (with timestamped links)
+uv run clip live burn --wait        # clip a stream WHILE it is live (see "Live clipping" below)
 uv run clip harvest                 # clip everything new from sources.yaml
 uv run clip upload --check          # first time: fill in one upload, you click Schedule
 uv run clip upload                  # upload the next 15, scheduled for US prime time
@@ -69,6 +70,23 @@ On long streams this also saves most of the work: instead of transcribing the fi
 of the biggest spikes is downloaded and transcribed, across the **whole** stream. Already have a chat export from
 [TwitchDownloader](https://github.com/lay295/TwitchDownloader)? `uv run clip run <vod-url> --chat chat.json`.
 Settings: `chat:` in `config.yaml`. Only clip streamers who allow it (see `sources.yaml`).
+
+## Live clipping (don't wait for the VOD)
+
+```bash
+uv run clip live burn                          # a Twitch channel (name or twitch.tv/name)
+uv run clip live burn officermesser --wait     # several at once; wait for offline ones to go live
+uv run clip live "https://www.youtube.com/@someone/live" --post   # YouTube; upload each clip right away
+uv run clip live burn --dry-run                # only show the chat bursts + save the raw cuts (to tune sensitivity)
+```
+
+While the stream runs, the clipper keeps the last few minutes on disk and watches chat (Twitch: anonymous read-only
+chat; YouTube: the live-chat feed, ~5 s behind). Every second it compares the last 10 s of chat with the normal pace of
+the past 5 minutes. When chat goes wild, it cuts the recording from **15 s before the burst** to 20 s after, transcribes
+it, asks your agent whether it's a real moment (ads, raids, giveaway spam and "be right back" screens get dropped) and
+for the title/hook, renders it with Remotion and puts it in the upload queue, about a minute after it happened.
+Without `--post` the clips are scheduled by the normal `clip upload`. Stop with Ctrl-C (clips already cut still
+finish). Settings: `live:` in `config.yaml`. Same rule: only clip streamers who allow it.
 
 ## Speed (M-series Mac)
 

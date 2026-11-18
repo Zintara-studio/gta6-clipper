@@ -37,6 +37,7 @@ HYPE = {
     "💀", "😂", "🤣", "😭", "🔥", "😱", "‼️",
 }
 _PHRASES = {"no way": "noway", "clip it": "clipit", "clip that": "clipit", "oh my god": "omg"}
+_LAUGH = re.compile(r"(?:ha|ja|he|je|ah|aj){2,}[hj]?|k{4,}|lo+l+|lmf?a+o+|xd+|w{2,}|rs{2,}")
 _TOKEN = re.compile(r"[a-z0-9']+|[\U0001F300-\U0001FAFF☀-➿]")
 
 
@@ -186,7 +187,7 @@ def _tokens(text: str) -> list[str]:
     t = text.lower()
     for k, v in _PHRASES.items():
         t = t.replace(k, f" {v} ")
-    return _TOKEN.findall(t)
+    return [("lol" if w not in HYPE and _LAUGH.fullmatch(w) else w) for w in _TOKEN.findall(t)]
 
 
 def spikes(msgs: list[list], duration: float, max_spikes: int = 40, min_gap: int = 60) -> list[dict]:

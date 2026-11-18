@@ -24,6 +24,8 @@ DEFAULTS: dict = {
     "min_score": 6,
     "vod_max_minutes": 240,
     "chat": {"enabled": True, "windows": 0, "lead_seconds": 60, "tail_seconds": 20},
+    "live": {"lead_seconds": 15, "tail_seconds": 20, "sensitivity": 3.0, "min_msgs": 8,
+             "min_gap_seconds": 60, "buffer_minutes": 4, "min_score": 5},
     "clip_length": {
         "stream": [15, 55],
         "gameplay": [15, 55],

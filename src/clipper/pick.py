@@ -54,6 +54,25 @@ def _inside(t: float, spans: list[tuple[float, float]]) -> bool:
     return any(a <= t < b for a, b in spans)
 
 
+def rules(want: int, lmin: int, lmax: int) -> str:
+    return f"""RULES
+- Return up to {want} clips, best first. Fewer is fine; return an empty list if nothing is good.
+- Each clip must be {lmin}-{lmax} seconds and make sense to someone who never saw the video.
+- Start right before the setup (no dead air), end right after the payoff/punchline. Use transcript timestamps.
+- score: 1-10 for how likely a US viewer stops scrolling and watches to the end. Be strict; 8+ is rare.
+- title: max 70 characters, American English, curiosity-driven, must contain "GTA 6". No fake claims, no ALL CAPS,
+  at most one emoji. No hashtags in the title.
+- hook: 2-6 word on-screen text shown at the top for the whole clip (e.g. "HE DID NOT SEE THAT COMING").
+- voice_hook: one punchy sentence (max 14 words) a narrator says over the first seconds, adding context or a take
+  (e.g. "Rockstar hid this detail in the trailer and nobody noticed."). Write it even if it may not be used.
+- description: 1-2 short sentences that add context. No hashtags (they are added automatically).
+- tags: 5-10 lowercase search tags (e.g. "gta 6 funny moments", "gta 6 leonida").
+- reason: a few words on why this moment works.
+- Never pick moments with slurs, sexual content, or real-world violence.
+- Skip moments whose main appeal is a licensed song or music video (instant copyright claim). Speech, action and reveals only.
+"""
+
+
 def build_prompt(title: str, source_type: str, segments: list[dict], peaks: list[dict],
                  spans: list[tuple[float, float]], want: int, lmin: int, lmax: int,
                  avoid: list[tuple[float, float]], chat: list[dict] | None = None) -> str:
@@ -88,22 +107,7 @@ TRANSCRIPT (seconds from start of video):
 LOUDNESS SPIKES (screams, explosions, hype, music hits): {", ".join(loud) or "none"}
 {chat_txt}ALREADY CLIPPED, DO NOT OVERLAP: {avoid_txt}
 
-RULES
-- Return up to {want} clips, best first. Fewer is fine; return an empty list if nothing is good.
-- Each clip must be {lmin}-{lmax} seconds and make sense to someone who never saw the video.
-- Start right before the setup (no dead air), end right after the payoff/punchline. Use transcript timestamps.
-- score: 1-10 for how likely a US viewer stops scrolling and watches to the end. Be strict; 8+ is rare.
-- title: max 70 characters, American English, curiosity-driven, must contain "GTA 6". No fake claims, no ALL CAPS,
-  at most one emoji. No hashtags in the title.
-- hook: 2-6 word on-screen text shown at the top for the whole clip (e.g. "HE DID NOT SEE THAT COMING").
-- voice_hook: one punchy sentence (max 14 words) a narrator says over the first seconds, adding context or a take
-  (e.g. "Rockstar hid this detail in the trailer and nobody noticed."). Write it even if it may not be used.
-- description: 1-2 short sentences that add context. No hashtags (they are added automatically).
-- tags: 5-10 lowercase search tags (e.g. "gta 6 funny moments", "gta 6 leonida").
-- reason: a few words on why this moment works.
-- Never pick moments with slurs, sexual content, or real-world violence.
-- Skip moments whose main appeal is a licensed song or music video (instant copyright claim). Speech, action and reveals only.
-"""
+{rules(want, lmin, lmax)}"""
 
 
 def _overlap(a: tuple[float, float], b: tuple[float, float]) -> float:

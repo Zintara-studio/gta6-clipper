@@ -93,6 +93,27 @@ def chat_cmd(
 
 
 @app.command()
+def live(
+    channels: list[str] = typer.Argument(..., help="Twitch channels (name or twitch.tv/name) or YouTube live URLs"),
+    wait: bool = typer.Option(False, "--wait", help="if a channel is offline, wait and start when it goes live"),
+    post: bool = typer.Option(False, "--post", help="upload each clip as soon as it is rendered (publish now)"),
+    max_clips: int = typer.Option(0, help="stop after this many clips (0 = until the stream ends)"),
+    hours: float = typer.Option(0, help="stop after this many hours (0 = no limit)"),
+    lead: Optional[float] = typer.Option(None, help="seconds before the chat burst where the clip starts (default 15)"),
+    type: Optional[str] = typer.Option(None, "--type", "-t", help=f"one of {', '.join(SOURCE_TYPES)}"),
+    layout: Optional[str] = typer.Option(None, "--layout", "-l", help="crop | blur | facecam"),
+    agent: Optional[str] = typer.Option(None, help="claude | codex | agy | none (none = no agent, default title)"),
+    dry_run: bool = typer.Option(False, help="only detect bursts and cut the raw recordings (no agent, no render)"),
+):
+    """Clip a stream WHILE it is live: when chat goes wild, clip from 15 s before it."""
+    from . import live as live_mod
+
+    console.print("[dim]Only clip streamers who allow it (add them to sources.yaml with their permission note).[/]")
+    live_mod.run(channels, load_config(), agent=agent, post=post, wait=wait, max_clips=max_clips, hours=hours,
+                 args={"lead": lead, "type": type, "layout": layout}, dry_run=dry_run)
+
+
+@app.command()
 def harvest(
     limit: int = typer.Option(0, help="max videos to process this run (0 = no limit)"),
     dry_run: bool = typer.Option(False, help="only list what would be processed"),

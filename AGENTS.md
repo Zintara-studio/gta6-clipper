@@ -12,6 +12,7 @@ user's own YouTube channel through YouTube Studio in **ego lite**. Each person r
 | `uv run clip doctor` | check ffmpeg, node, agent CLI, ego-browser, font, music |
 | `uv run clip run <url-or-file> [--type stream\|gameplay\|reaction\|news\|trailer] [--layout crop\|blur\|facecam] [--chat chat.json]` | clip one video |
 | `uv run clip chat <vod-url> [--top N]` | list chat spikes in a Twitch VOD / YouTube stream, with timestamped links |
+| `uv run clip live <channel...> [--wait] [--post] [--max-clips N] [--hours H] [--dry-run]` | clip Twitch / YouTube streams while they are live, from chat bursts |
 | `uv run clip harvest [--dry-run] [--limit N]` | find new videos from `sources.yaml` and clip them |
 | `uv run clip upload [--count N] [--now] [--check] [--dry-run]` | upload ready clips via ego lite, scheduled across US prime time |
 | `uv run clip auto` | harvest + upload (the daily command) |
@@ -31,6 +32,12 @@ user's own YouTube channel through YouTube Studio in **ego lite**. Each person r
 5. `render.py`: ffmpeg cuts `segment.mp4` and mixes `audio.m4a` (voice hook from edge-tts, music ducked under speech, -14 LUFS).
    **Remotion** (`editor/`) renders the visuals (layout, captions, hook, zoom punches) in one batch, and ffmpeg muxes `clip_NN.mp4`.
 6. `upload.py` + `uploader/youtube_studio.mjs`: builds a manifest with US Eastern publish slots, runs the script in `ego-browser nodejs`, and records results in `workspace/clipper.db`.
+7. `live.py` (`clip live`): per channel a `Recorder` (streamlink | ffmpeg → 2 s `.ts` segments in `buffer/`, tagged with
+   wall-clock time, pruned to `live.buffer_minutes`), a chat listener (`TwitchChat` anonymous IRC, `YouTubeChat` polls
+   `youtubei/v1/live_chat/get_live_chat`), and a `Detector` (last 10 s vs median 10 s of the past 5 min, past-only).
+   A burst at T cuts `[T - lead - 3, T + tail + 12]` into `spikes/sNN/raw.mp4`; one worker thread transcribes it, asks
+   the agent (`live_prompt`, empty list = not a real moment), clamps the start to ~lead s before T and calls
+   `pipeline.render_picks`. The video row id is `live-<platform>-<channel>-<stamp>`.
 
 Everything generated lives in `workspace/` (git-ignored). `config.yaml`, `sources.yaml` and `assets/music/*` are personal and git-ignored.
 

@@ -178,6 +178,19 @@
       </div>
 
       <div class="card">
+        <h2>Clip live</h2>
+        <textarea id="live-ch" rows="2" placeholder="Twitch channel names (or twitch.tv/name) or YouTube live links — one per line"></textarea>
+        <div class="row">
+          <label class="check" style="flex-direction:row"><input type="checkbox" id="live-wait" checked> Wait for offline channels, keep going all day</label>
+        </div>
+        <div class="row">
+          <label class="check" style="flex-direction:row"><input type="checkbox" id="live-post"> Upload each clip right away</label>
+        </div>
+        <div class="row"><button class="btn primary wide" id="live-go">Watch live</button></div>
+        <div class="hint">Watches chat while the stream runs. When chat goes wild, it clips from 15 s before it, about a minute after it happened. Only clip streamers who allow it.</div>
+      </div>
+
+      <div class="card">
         <h2>Sources <span class="right pill" id="src-count">–</span></h2>
         <button class="btn wide" id="harvest">Harvest new videos from sources.yaml</button>
         <div class="hint">Checks every channel / streamer in <code>sources.yaml</code> for new uploads and clips them.</div>
@@ -272,6 +285,11 @@ async function loadHealth() {
 
 // ---------- tasks
 function stepper(t) {
+  if (t.kind === "live") {
+    const i = t.info;
+    const on = t.status === "running" ? (i.titles.length ? `● live: ${[...new Set(i.titles)].join(" · ")}` : "waiting for the stream…") : "";
+    return `<div class="task-sub">${esc(on)}${i.bursts ? ` · ${i.bursts} chat bursts` : ""}</div>`;
+  }
   if (t.kind === "upload") {
     const i = t.info;
     const pos = i.upload_pos ? `clip ${i.upload_pos}` : (t.status === "running" ? "opening ego lite…" : "");
@@ -296,7 +314,7 @@ function stepper(t) {
 
 function taskTitle(t) {
   if (t.kind === "harvest") return t.info.title ? `Harvest · ${t.info.title}` : "Harvest sources";
-  if (t.kind === "upload") return t.label;
+  if (t.kind === "upload" || t.kind === "live") return t.label;
   return t.info.title || t.label;
 }
 
@@ -467,6 +485,16 @@ $("#go").addEventListener("click", async () => {
   } catch (e) { toast(e.message); }
 });
 $("#urls").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("#go").click(); });
+$("#live-go").addEventListener("click", async () => {
+  const channels = $("#live-ch").value.trim();
+  if (!channels) return toast("Enter a channel first.");
+  try {
+    await api("/api/live", { channels, wait: $("#live-wait").checked, post: $("#live-post").checked });
+    $("#live-ch").value = "";
+    toast("Watching live — cancel the job to stop", true);
+    refresh();
+  } catch (e) { toast(e.message); }
+});
 $("#harvest").addEventListener("click", async () => { await api("/api/harvest", {}); toast("Harvest queued", true); refresh(); });
 $("#count").addEventListener("input", (e) => (e.target.dataset.touched = "1"));
 $("#upload").addEventListener("click", async () => {

@@ -40,7 +40,7 @@ class Runner:
         # anything "running" when the dashboard last stopped was interrupted
         con.execute("update tasks set status='failed', finished_at=? where status='running'", (time.time(),))
         con.commit()
-        for lane in ("process", "upload"):
+        for lane in ("process", "upload", "live"):
             threading.Thread(target=self._loop, args=(lane,), daemon=True).start()
 
     def add(self, kind: str, args: list[str], label: str, lane: str) -> int:
@@ -153,6 +153,8 @@ def parse_log(path: Path | str | None, kind: str) -> dict:
             elif k == "render":
                 out["render"] = v
             continue
+        if kind == "live" and "⚡" in line:
+            out["bursts"] = out.get("bursts", 0) + 1
         if kind == "upload":
             m = re.search(r"\[uploader\] \((\d+)/(\d+)\)", line)
             if m:
@@ -348,6 +350,21 @@ class Handler(BaseHTTPRequestHandler):
                     args.append("--force")
                 ids.append(self.runner.add("process", args, x, "process"))
             self._json({"ok": True, "tasks": ids})
+        elif p == "/api/live":
+            from ..live import parse_channel
+            chans = [x.strip().strip('"') for x in (data.get("channels") or "").splitlines() if x.strip()]
+            try:
+                for c in chans:
+                    parse_channel(c)
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+                return
+            if not chans:
+                self._json({"error": "Enter at least one channel."}, 400)
+                return
+            args = ["live", *chans] + (["--wait"] if data.get("wait") else []) + (["--post"] if data.get("post") else [])
+            label = "Live: " + ", ".join(parse_channel(c)[1] or c for c in chans)
+            self._json({"ok": True, "task": self.runner.add("live", args, label, "live")})
         elif p == "/api/harvest":
             args = ["harvest"]
             if int(data.get("limit") or 0) > 0:
